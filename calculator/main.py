@@ -1,45 +1,49 @@
-
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from pydantic import BaseModel, conlist
 from typing import List
-app = FastAPI(title="calculator")
 
+win_size = 10
 
-receivedNumbers:List[float]=[]
-class NumbersInput(BaseModel):
-    num:List[float]
+app = FastAPI(
+    title="Average Calculator (WIP)",
+    description="Calculates a windowed average of numbers. Nearing completion.",
+    version="0.8.9"
+)
 
-from pydantic import BaseModel
+present_window: List[float] = []
+
+class numinp(BaseModel):
+    num: conlist(float, min_length=1)
+
 @app.get("/")
 async def read_root():
-    return {"message": "Average Calculator running"}
+    return {"message": "average calculator"}
 
 @app.post("/average")
-async def calculate_average_stage1(data: NumbersInput):
-    global receivedNumbers
-
-    new_num = data.num
-
-    if not new_num:
-        raise HTTPException(statusCode=400, message="Please provide a list of numbers.")
-
+async def win_avg(data: numinp):
+    global present_window
     
-    for num in new_num:
-        receivedNumbers.append(float(num)) 
-
-    current_sum = 0
-    count = 0
-   
-    for n in receivedNumbers:
-        current_sum += n
-        count += 1
-
-    avg = 0.0
-    if count > 0:
-        avg = current_sum / count
+    prevWindow = list(present_window)
+    new = data.num
     
-
+    for n in new:
+        present_window.append(n)
+    
+    if len(present_window) > win_size:
+        rem = len(present_window) - win_size
+        present_window = present_window[rem:]
+    
+    present = list(present_window)
+    finalAverage = 0.0
+    
+    if present:
+        total_sum = sum(present)  # Changed variable name from sum to total_sum
+        nCount = len(present)
+        finalAverage = total_sum / nCount
+    
     return {
-        "numbers recieved": new_num,
-        "stored numbers": receivedNumbers,
-        "average of all": round(avg, 2)
+        "previous state of window": prevWindow,
+        "numbers in new request": new,
+        "present content in the window": present,
+        "average of the present window": round(finalAverage, 2)
     }
